@@ -444,11 +444,26 @@ hr { border: none; border-top: 1px solid #ccc; margin: 1.5em 0; }
     image_map = {}  # type: dict
     chapters = []
     spine = ["nav"]
+    free_count = 0
+    skipped_paid = 0
+    authenticated = bool(session.cookies.get("substack.sid"))
 
     print(f"\nProcessing {len(posts_data)} posts:")
     for i, post in enumerate(posts_data, 1):
         slug = post.get("slug", "")
         post_title = post.get("title", f"Post {i}")
+
+        # Determine paywall status from the post stub before fetching content.
+        # Substack sets audience to "everyone" for free posts and "paid" /
+        # "founding_member" for subscriber-only posts.
+        audience = post.get("audience", "everyone")
+        is_paid = audience != "everyone"
+
+        if is_paid and not authenticated:
+            skipped_paid += 1
+            print(f"  [{i}/{len(posts_data)}] {post_title[:60]} (paid, skipping)")
+            continue
+
         print(f"  [{i}/{len(posts_data)}] {post_title[:60]}", end="", flush=True)
 
         try:
@@ -466,10 +481,11 @@ hr { border: none; border-top: 1px solid #ccc; margin: 1.5em 0; }
                     body_html = fetch_post_html_fallback(canonical_url, session)
 
             if not body_html:
-                # If still nothing, check for paywall
                 if full.get("truncated_body_text"):
-                    print(" (paywalled — provide --session-id for full content)")
-                    body_html = "<p><em>This post is behind a paywall. Provide --session-id to download the full article.</em></p>"
+                    # Authenticated but still truncated — treat as paid
+                    skipped_paid += 1
+                    print(" (paywalled)")
+                    continue
                 else:
                     print(" (no content, skipping)")
                     continue
@@ -508,6 +524,8 @@ hr { border: none; border-top: 1px solid #ccc; margin: 1.5em 0; }
             book.add_item(chapter)
             chapters.append(chapter)
             spine.append(chapter)
+            if not is_paid:
+                free_count += 1
             print(" ✓")
 
         except Exception as e:
@@ -525,6 +543,8 @@ hr { border: none; border-top: 1px solid #ccc; margin: 1.5em 0; }
     print(f"\nEPUB written to: {output_path}")
     size_mb = os.path.getsize(output_path) / (1024 * 1024)
     print(f"File size: {size_mb:.1f} MB")
+    print(f"\nDownloaded {free_count} free post{'s' if free_count != 1 else ''}. "
+          f"Skipped {skipped_paid} paid post{'s' if skipped_paid != 1 else ''}.")
 
 
 def normalize_url(url: str) -> str:
