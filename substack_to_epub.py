@@ -296,10 +296,14 @@ def download_and_embed_images(
         # Use srcset's first (highest-res) source if available, otherwise src
         srcset = img_tag.get("srcset", "")
         if srcset:
-            # srcset format: "url1 1x, url2 2x" or "url1 400w, url2 800w"
-            candidates = [s.strip().split()[0] for s in srcset.split(",") if s.strip()]
+            # srcset entries are separated by ", " (comma + space). We must NOT
+            # split on bare "," because Substack CDN URLs contain commas in their
+            # transform params (e.g. "w_1456,c_limit,f_auto,q_auto:good,...").
+            # Splitting on ", " is safe because URL-internal commas are never
+            # followed by a space.
+            candidates = [s.strip().split()[0] for s in re.split(r",\s+", srcset) if s.strip()]
             if candidates:
-                src = candidates[-1]  # last is typically largest
+                src = candidates[-1]  # last entry is typically the largest
 
         if src in image_map:
             img_tag["src"] = image_map[src]
