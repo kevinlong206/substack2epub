@@ -301,7 +301,10 @@ def download_and_embed_images(
 ) -> str:
     """
     Download all images in the HTML, embed them in the EPUB, and rewrite src attributes.
-    image_map is a shared dict {original_url: epub_filename} to deduplicate across chapters.
+    image_map is a shared dict {original_url: html_relative_src} to deduplicate across chapters.
+
+    Chapter files live at posts/*.xhtml, so image paths in HTML must be ../images/foo.jpg
+    while the epub item file_name (used in the OPF manifest) stays as images/foo.jpg.
     """
     soup = BeautifulSoup(html, "html.parser")
 
@@ -310,20 +313,18 @@ def download_and_embed_images(
         if not src or src.startswith("data:"):
             continue
 
-        # Use srcset's first (highest-res) source if available, otherwise src
+        # Use srcset's last (highest-res) source if available, otherwise src.
+        # srcset entries are separated by ", " (comma + space). We must NOT
+        # split on bare "," because Substack CDN URLs contain commas in their
+        # transform params (e.g. "w_1456,c_limit,f_auto,q_auto:good,...").
         srcset = img_tag.get("srcset", "")
         if srcset:
-            # srcset entries are separated by ", " (comma + space). We must NOT
-            # split on bare "," because Substack CDN URLs contain commas in their
-            # transform params (e.g. "w_1456,c_limit,f_auto,q_auto:good,...").
-            # Splitting on ", " is safe because URL-internal commas are never
-            # followed by a space.
             candidates = [s.strip().split()[0] for s in re.split(r",\s+", srcset) if s.strip()]
             if candidates:
-                src = candidates[-1]  # last entry is typically the largest
+                src = candidates[-1]
 
         if src in image_map:
-            img_tag["src"] = image_map[src]
+            img_tag["src"] = image_map[src]  # already the ../images/... relative path
             img_tag.attrs.pop("srcset", None)
             img_tag.attrs.pop("data-src", None)
             continue
@@ -338,21 +339,22 @@ def download_and_embed_images(
             # Build a safe filename
             parsed = urllib.parse.urlparse(src)
             basename = os.path.basename(parsed.path)
-            # Strip query string artifacts and force .jpg
             basename = re.sub(r"[^\w.\-]", "_", basename)
             stem = Path(basename).stem[:60]
-            epub_name = f"images/{stem}_{len(image_map)}.jpg"
+            epub_file_name = f"images/{stem}_{len(image_map)}.jpg"
+            # HTML src is relative to posts/*.xhtml → must go up one level
+            html_src = f"../images/{stem}_{len(image_map)}.jpg"
 
             img_item = epub.EpubItem(
                 uid=f"img_{len(image_map)}",
-                file_name=epub_name,
+                file_name=epub_file_name,
                 media_type="image/jpeg",
                 content=img_data,
             )
             book.add_item(img_item)
-            image_map[src] = epub_name
+            image_map[src] = html_src
 
-            img_tag["src"] = epub_name
+            img_tag["src"] = html_src
             img_tag.attrs.pop("srcset", None)
             img_tag.attrs.pop("data-src", None)
 
