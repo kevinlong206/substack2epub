@@ -555,7 +555,8 @@ hr { border: none; border-top: 1px solid #ccc; margin: 1.5em 0; }
         time.sleep(REQUEST_DELAY)
 
     # Table of contents
-    book.toc = tuple(epub.Link(c.file_name, c.title, slugify(c.title)) for c in chapters)
+    # Use the chapter's own uid (set to its file stem) to guarantee uniqueness
+    book.toc = tuple(epub.Link(c.file_name, c.title, c.file_name.split("/")[-1].replace(".xhtml", "")) for c in chapters)
     book.add_item(epub.EpubNcx())
     book.add_item(epub.EpubNav())
     book.spine = spine
@@ -621,16 +622,15 @@ def main():
         help="Maximum number of posts to download (default: all)",
     )
     parser.add_argument(
-        "--newest-first",
-        action="store_true",
-        default=True,
-        help="Order posts newest-first in the EPUB (default: True)",
-    )
-    parser.add_argument(
-        "--oldest-first",
-        action="store_true",
-        default=False,
-        help="Order posts oldest-first in the EPUB",
+        "--sort",
+        choices=["new", "old", "popular"],
+        default="new",
+        help=(
+            "Order of posts in the EPUB: "
+            "'new' = newest first (default), "
+            "'old' = oldest first, "
+            "'popular' = most liked first (uses reaction_count from the API)"
+        ),
     )
 
     args = parser.parse_args()
@@ -687,9 +687,12 @@ def main():
     for p in posts:
         p["_base_url"] = base_url
 
-    # Sort order
-    if args.oldest_first:
+    # Sort order (archive API returns newest-first by default)
+    if args.sort == "old":
         posts = list(reversed(posts))
+    elif args.sort == "popular":
+        posts.sort(key=lambda p: p.get("reaction_count", 0), reverse=True)
+        print(f"Sorted by popularity (reaction count).")
 
     # Determine output filename
     if args.output:
