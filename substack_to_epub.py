@@ -324,7 +324,7 @@ def download_and_embed_images(
                 src = candidates[-1]
 
         if src in image_map:
-            img_tag["src"] = image_map[src]  # already the ../images/... relative path
+            img_tag["src"] = image_map[src]  # already the images/... relative path
             img_tag.attrs.pop("srcset", None)
             img_tag.attrs.pop("data-src", None)
             continue
@@ -342,8 +342,8 @@ def download_and_embed_images(
             basename = re.sub(r"[^\w.\-]", "_", basename)
             stem = Path(basename).stem[:60]
             epub_file_name = f"images/{stem}_{len(image_map)}.jpg"
-            # HTML src is relative to posts/*.xhtml → must go up one level
-            html_src = f"../images/{stem}_{len(image_map)}.jpg"
+            # Chapters live at the EPUB root alongside images/, so no ../
+            html_src = f"images/{stem}_{len(image_map)}.jpg"
 
             img_item = epub.EpubItem(
                 uid=f"img_{len(image_map)}",
@@ -385,6 +385,16 @@ def clean_html_for_epub(html: str, title: str) -> str:
     ]:
         for el in soup.select(sel):
             el.decompose()
+
+    # Remove <source> elements — their srcsets point to external CDN URLs
+    # (often WebP) that don't work in an offline EPUB. The <img> src already
+    # holds the locally-embedded path set by download_and_embed_images.
+    for source in soup.find_all("source"):
+        source.decompose()
+
+    # Unwrap <picture> elements: keep the inner <img>, drop the wrapper.
+    for picture in soup.find_all("picture"):
+        picture.unwrap()
 
     # Remove empty paragraphs
     for p in soup.find_all("p"):
@@ -536,7 +546,9 @@ hr { border: none; border-top: 1px solid #ccc; margin: 1.5em 0; }
             # Clean and wrap in XHTML
             chapter_html = clean_html_for_epub(body_html, post_title)
 
-            chapter_filename = f"posts/{i:04d}-{slugify(post_title)}.xhtml"
+            # Keep chapters at the EPUB content root so relative paths to
+            # images/ and style/ are simple (no ../ prefix needed).
+            chapter_filename = f"{i:04d}-{slugify(post_title)}.xhtml"
             chapter = epub.EpubHtml(
                 title=post_title,
                 file_name=chapter_filename,
