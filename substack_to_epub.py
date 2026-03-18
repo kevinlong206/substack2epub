@@ -193,8 +193,17 @@ def fetch_all_posts(base_url: str, session: requests.Session, limit) -> list:
         # /api/v1/archive is the correct Substack endpoint for post listings
         url = f"{base_url}/api/v1/archive"
         params = {"limit": page_size, "offset": offset, "sort": "new"}
-        resp = session.get(url, params=params, timeout=30)
-        resp.raise_for_status()
+        for attempt in range(5):
+            resp = session.get(url, params=params, timeout=30)
+            if resp.status_code == 429:
+                wait = 30 * (attempt + 1)
+                print(f"\n  Rate limited — waiting {wait}s ...", end="", flush=True)
+                time.sleep(wait)
+                continue
+            resp.raise_for_status()
+            break
+        if not resp.content.strip():
+            break
         batch = resp.json()
         if not batch:
             break
@@ -203,9 +212,10 @@ def fetch_all_posts(base_url: str, session: requests.Session, limit) -> list:
         if limit and len(posts) >= limit:
             posts = posts[:limit]
             break
-        if len(batch) < page_size:
-            break
-        offset += page_size
+        # Advance by the actual number returned, not page_size.
+        # Substack's first page can return fewer than page_size even when more
+        # posts exist further back, so we must not stop on a short batch.
+        offset += len(batch)
         time.sleep(REQUEST_DELAY)
 
     print(f"\nFound {len(posts)} posts.")
@@ -215,9 +225,16 @@ def fetch_all_posts(base_url: str, session: requests.Session, limit) -> list:
 def fetch_post_content(base_url: str, slug: str, session: requests.Session) -> dict:
     """Fetch full post content including body_html."""
     url = f"{base_url}/api/v1/posts/{slug}"
-    resp = session.get(url, timeout=30)
-    resp.raise_for_status()
-    return resp.json()
+    for attempt in range(5):
+        resp = session.get(url, timeout=30)
+        if resp.status_code == 429:
+            wait = 30 * (attempt + 1)
+            print(f"\n  Rate limited — waiting {wait}s ...", end="", flush=True)
+            time.sleep(wait)
+            continue
+        resp.raise_for_status()
+        return resp.json()
+    resp.raise_for_status()  # raise after exhausting retries
 
 
 def fetch_post_html_fallback(post_url: str, session: requests.Session) -> str:
