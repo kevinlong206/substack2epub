@@ -346,7 +346,10 @@
       </div>
       <div class="opt-group" style="flex:1; min-width:200px">
         <label>Session ID (for paywalled posts)</label>
-        <input id="opt-session" type="password" placeholder="substack.sid cookie (optional)" />
+        <div style="display:flex; gap:6px">
+          <input id="opt-session" type="password" placeholder="substack.sid cookie (optional)" style="flex:1" />
+          <button class="btn btn-secondary" id="detect-btn" onclick="detectSession()" title="Read substack.sid from your local browser">Auto-detect</button>
+        </div>
       </div>
       <button class="btn btn-primary" id="start-btn" onclick="startDownload()">Start Download</button>
     </div>
@@ -531,6 +534,29 @@
       setStatus("error", "Connection lost");
       document.getElementById("start-btn").disabled = false;
     };
+  }
+
+  // ── Auto-detect session ──
+  function detectSession() {
+    const btn = document.getElementById("detect-btn");
+    btn.disabled = true;
+    btn.textContent = "Detecting…";
+    fetch("/api/detect-session")
+      .then(r => r.json())
+      .then(data => {
+        if (data.found) {
+          document.getElementById("opt-session").value = data.sid;
+          btn.textContent = "✓ Found";
+          setTimeout(() => { btn.textContent = "Auto-detect"; btn.disabled = false; }, 2000);
+        } else {
+          btn.textContent = "Not found";
+          setTimeout(() => { btn.textContent = "Auto-detect"; btn.disabled = false; }, 2000);
+        }
+      })
+      .catch(() => {
+        btn.textContent = "Error";
+        setTimeout(() => { btn.textContent = "Auto-detect"; btn.disabled = false; }, 2000);
+      });
   }
 
   // ── Boot ──

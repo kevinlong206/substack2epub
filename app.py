@@ -16,7 +16,6 @@ import sys
 import tempfile
 import time
 import urllib.parse
-from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import requests
@@ -222,6 +221,7 @@ def fetch_post_counts(base_url: str) -> dict:
     Free/paid come from archive pagination (capped at ~600 posts for speed).
     Both fetches run in parallel.
     """
+    from concurrent.futures import ThreadPoolExecutor
     with ThreadPoolExecutor(max_workers=2) as ex:
         sitemap_future = ex.submit(_total_from_sitemap, base_url)
         archive_future = ex.submit(_free_paid_from_archive, base_url)
@@ -231,6 +231,24 @@ def fetch_post_counts(base_url: str) -> dict:
     # Prefer the sitemap total (exact); fall back to archive sum if sitemap failed
     total = sitemap_total if sitemap_total > 0 else (free + paid)
     return {"total": total, "free": free, "paid": paid, "capped": capped}
+
+
+@app.route("/api/detect-session")
+def detect_session():
+    """Try to read substack.sid from the local browser's cookie store."""
+    try:
+        import browser_cookie3
+        for loader in (browser_cookie3.chrome, browser_cookie3.firefox, browser_cookie3.safari):
+            try:
+                cj = loader(domain_name="substack.com")
+                for c in cj:
+                    if c.name == "substack.sid":
+                        return jsonify({"found": True, "sid": c.value})
+            except Exception:
+                continue
+    except ImportError:
+        return jsonify({"found": False, "error": "browser-cookie3 not installed"})
+    return jsonify({"found": False})
 
 
 @app.route("/")

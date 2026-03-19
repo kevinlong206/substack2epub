@@ -53,7 +53,10 @@ def make_session(session_id) -> requests.Session:
         )
     })
     if session_id:
-        session.cookies.set("substack.sid", session_id)
+        # Set with explicit domain so it doesn't conflict with domain-specific
+        # cookies the server may set later (both share the same domain key).
+        session.cookies.set("substack.sid", session_id,
+                            domain=".substack.com", path="/")
     return session
 
 

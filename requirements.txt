@@ -4,3 +4,4 @@ beautifulsoup4>=4.12
 Pillow>=10.0
 ebooklib>=0.18
 lxml>=5.0
+browser-cookie3>=0.19
