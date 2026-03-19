@@ -604,8 +604,16 @@ hr { border: none; border-top: 1px solid #ccc; margin: 1.5em 0; }
     print(f"\nEPUB written to: {output_path}")
     size_mb = os.path.getsize(output_path) / (1024 * 1024)
     print(f"File size: {size_mb:.1f} MB")
-    print(f"\nDownloaded {free_count} free post{'s' if free_count != 1 else ''}. "
-          f"Skipped {skipped_paid} paid post{'s' if skipped_paid != 1 else ''}.")
+    paid_downloaded = downloaded - free_count
+    post_word = lambda n: f"{n} post{'s' if n != 1 else ''}"
+    parts = [post_word(downloaded) + " downloaded"]
+    if free_count and paid_downloaded:
+        parts.append(f"{free_count} free, {paid_downloaded} paid")
+    elif paid_downloaded:
+        parts.append("all paid")
+    if skipped_paid:
+        parts.append(f"{post_word(skipped_paid)} paywalled/skipped")
+    print("\n" + " · ".join(parts) + ".")
 
 
 def normalize_url(url: str) -> str:
