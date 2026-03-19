@@ -154,8 +154,6 @@ def fetch_post_counts(base_url: str) -> dict:
                 break
             total += len(batch)
             free += sum(1 for p in batch if p.get("audience", "everyone") == "everyone")
-            if len(batch) < page_size:
-                break
             offset += len(batch)
             time.sleep(0.3)
         except Exception:
