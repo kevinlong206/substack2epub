@@ -16,6 +16,7 @@ import sys
 import tempfile
 import time
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import requests
@@ -129,20 +130,28 @@ def normalize_url(url: str) -> str:
     return url
 
 
-def fetch_post_counts(base_url: str) -> dict:
-    """Paginate through posts to count total / free / paid.
+def _total_from_sitemap(base_url: str) -> int:
+    """Fetch the sitemap and count post URLs (/p/ paths). Returns 0 on failure."""
+    try:
+        resp = requests.get(f"{base_url}/sitemap.xml", headers=BROWSER_HEADERS, timeout=15)
+        if resp.status_code == 200:
+            return len(re.findall(r"<loc>[^<]+/p/[^<]+</loc>", resp.text))
+    except Exception:
+        pass
+    return 0
 
-    Substack's API must be walked sequentially because it can return a short
-    first page even when many more posts exist (offset must advance by the
-    actual batch size, not by the requested page size).
 
-    Capped at MAX_PAGES to keep response time under ~4 seconds. Publications
-    larger than the cap return capped=True with a lower-bound count.
+def _free_paid_from_archive(base_url: str):
+    """Paginate the archive to count free/paid posts, capped at MAX_PAGES.
+
+    The offset must advance by the actual batch size (not page_size) because
+    Substack can return a short first page even when thousands more exist.
+    Returns (free, paid, capped).
     """
-    MAX_PAGES = 12  # ~3-4s at 0.3s/request, accurate up to ~600 posts
+    MAX_PAGES = 12
     page_size = 50
-    total = 0
     free = 0
+    paid = 0
     offset = 0
 
     for _ in range(MAX_PAGES):
@@ -161,16 +170,36 @@ def fetch_post_counts(base_url: str) -> dict:
             batch = resp.json()
             if not batch:
                 break
-            total += len(batch)
-            free += sum(1 for p in batch if p.get("audience", "everyone") == "everyone")
-            offset += len(batch)   # must use actual size, not page_size
+            for p in batch:
+                if p.get("audience", "everyone") == "everyone":
+                    free += 1
+                else:
+                    paid += 1
+            offset += len(batch)
         except Exception:
             break
     else:
-        # Exited loop without hitting an empty batch — more posts exist
-        return {"total": total, "free": free, "paid": total - free, "capped": True}
+        return free, paid, True  # hit page cap — more posts exist
 
-    return {"total": total, "free": free, "paid": total - free, "capped": False}
+    return free, paid, False
+
+
+def fetch_post_counts(base_url: str) -> dict:
+    """Return total / free / paid post counts for a publication.
+
+    Total comes from the sitemap (one request, always exact).
+    Free/paid come from archive pagination (capped at ~600 posts for speed).
+    Both fetches run in parallel.
+    """
+    with ThreadPoolExecutor(max_workers=2) as ex:
+        sitemap_future = ex.submit(_total_from_sitemap, base_url)
+        archive_future = ex.submit(_free_paid_from_archive, base_url)
+        sitemap_total = sitemap_future.result()
+        free, paid, capped = archive_future.result()
+
+    # Prefer the sitemap total (exact); fall back to archive sum if sitemap failed
+    total = sitemap_total if sitemap_total > 0 else (free + paid)
+    return {"total": total, "free": free, "paid": paid, "capped": capped}
 
 
 @app.route("/")
