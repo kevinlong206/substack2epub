@@ -130,22 +130,31 @@ def normalize_url(url: str) -> str:
 
 
 def fetch_post_counts(base_url: str) -> dict:
-    """Paginate through all posts and return total / free / paid counts."""
+    """Paginate through posts to count total / free / paid.
+
+    Substack's API must be walked sequentially because it can return a short
+    first page even when many more posts exist (offset must advance by the
+    actual batch size, not by the requested page size).
+
+    Capped at MAX_PAGES to keep response time under ~4 seconds. Publications
+    larger than the cap return capped=True with a lower-bound count.
+    """
+    MAX_PAGES = 12  # ~3-4s at 0.3s/request, accurate up to ~600 posts
+    page_size = 50
     total = 0
     free = 0
     offset = 0
-    page_size = 50
 
-    while True:
+    for _ in range(MAX_PAGES):
         try:
             resp = requests.get(
                 f"{base_url}/api/v1/archive",
                 params={"limit": page_size, "offset": offset, "sort": "new"},
                 headers=BROWSER_HEADERS,
-                timeout=15,
+                timeout=10,
             )
             if resp.status_code == 429:
-                time.sleep(5)
+                time.sleep(3)
                 continue
             if resp.status_code != 200:
                 break
@@ -154,12 +163,14 @@ def fetch_post_counts(base_url: str) -> dict:
                 break
             total += len(batch)
             free += sum(1 for p in batch if p.get("audience", "everyone") == "everyone")
-            offset += len(batch)
-            time.sleep(0.3)
+            offset += len(batch)   # must use actual size, not page_size
         except Exception:
             break
+    else:
+        # Exited loop without hitting an empty batch — more posts exist
+        return {"total": total, "free": free, "paid": total - free, "capped": True}
 
-    return {"total": total, "free": free, "paid": total - free}
+    return {"total": total, "free": free, "paid": total - free, "capped": False}
 
 
 @app.route("/")

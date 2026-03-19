@@ -403,11 +403,12 @@
       el.innerHTML = `<span class="badge badge-error">unavailable</span>`;
       return;
     }
-    let html = `<span class="badge badge-total">📄 ${data.total} total</span>`;
+    const plus = data.capped ? "+" : "";
+    let html = `<span class="badge badge-total">📄 ${data.total}${plus} total</span>`;
     if (data.free > 0)
-      html += `<span class="badge badge-free">✓ ${data.free} free</span>`;
+      html += `<span class="badge badge-free">✓ ${data.free}${plus} free</span>`;
     if (data.paid > 0)
-      html += `<span class="badge badge-paid">🔒 ${data.paid} paid</span>`;
+      html += `<span class="badge badge-paid">🔒 ${data.paid}${plus} paid</span>`;
     el.innerHTML = html;
   }
 
@@ -426,10 +427,11 @@
           result.innerHTML = `<strong>Error:</strong> ${data.error}`;
           return;
         }
+        const plus = data.capped ? "+" : "";
         result.innerHTML =
-          `<strong>${data.total}</strong> posts found &nbsp;·&nbsp; ` +
-          `<span style="color:var(--green)"><strong>${data.free}</strong> free</span> &nbsp;·&nbsp; ` +
-          `<span style="color:var(--paid)"><strong>${data.paid}</strong> paid</span>`;
+          `<strong>${data.total}${plus}</strong> posts found &nbsp;·&nbsp; ` +
+          `<span style="color:var(--green)"><strong>${data.free}${plus}</strong> free</span> &nbsp;·&nbsp; ` +
+          `<span style="color:var(--paid)"><strong>${data.paid}${plus}</strong> paid</span>`;
       })
       .catch(e => { result.innerHTML = `Error: ${e.message}`; });
   }
