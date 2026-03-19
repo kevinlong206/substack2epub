@@ -64,11 +64,11 @@ POPULAR_SUBSTACKS = [
         "description": "The political economy of monopoly power",
     },
     {
-        "id": "platformer",
-        "name": "Platformer",
-        "url": "https://www.platformer.news",
-        "author": "Casey Newton",
-        "description": "Tech platforms, social media, and Silicon Valley",
+        "id": "slowboring",
+        "name": "Slow Boring",
+        "url": "https://www.slowboring.com",
+        "author": "Matt Yglesias",
+        "description": "Policy, politics, and the importance of being correct",
     },
     {
         "id": "pragmatic-engineer",
@@ -106,11 +106,11 @@ POPULAR_SUBSTACKS = [
         "description": "Ideas for an open society",
     },
     {
-        "id": "waitbutwhy",
-        "name": "Wait But Why",
-        "url": "https://waitbutwhy.com",
-        "author": "Tim Urban",
-        "description": "Long-form deep dives on complex topics",
+        "id": "doomberg",
+        "name": "Doomberg",
+        "url": "https://doomberg.substack.com",
+        "author": "Doomberg",
+        "description": "Energy, finance, and policy from an anonymous green chicken",
     },
 ]
 
@@ -131,11 +131,42 @@ def normalize_url(url: str) -> str:
 
 
 def _total_from_sitemap(base_url: str) -> int:
-    """Fetch the sitemap and count post URLs (/p/ paths). Returns 0 on failure."""
+    """Fetch the sitemap and count post entries. Returns 0 on failure.
+
+    Handles both flat Substack sitemaps (count /p/ URLs) and sitemap index
+    files (follow the sub-sitemap whose name contains 'post').
+    """
     try:
         resp = requests.get(f"{base_url}/sitemap.xml", headers=BROWSER_HEADERS, timeout=15)
-        if resp.status_code == 200:
-            return len(re.findall(r"<loc>[^<]+/p/[^<]+</loc>", resp.text))
+        if resp.status_code != 200:
+            return 0
+        xml = resp.text
+
+        # Sitemap index — find and fetch the posts sub-sitemap
+        if "<sitemapindex" in xml:
+            sub_urls = re.findall(r"<loc>(.*?)</loc>", xml)
+            posts_sitemap = next(
+                (u for u in sub_urls if "post" in u.lower()),
+                None,
+            )
+            if not posts_sitemap:
+                return 0
+            resp2 = requests.get(posts_sitemap, headers=BROWSER_HEADERS, timeout=15)
+            if resp2.status_code != 200:
+                return 0
+            xml = resp2.text
+
+        # Flat sitemap: count /p/ URLs (Substack format)
+        p_count = len(re.findall(r"<loc>[^<]+/p/[^<]+</loc>", xml))
+        if p_count > 0:
+            return p_count
+
+        # Non-Substack flat sitemap: count all <url> entries that aren't
+        # obviously non-post pages (archive, about, podcast, tags, authors)
+        all_locs = re.findall(r"<loc>(.*?)</loc>", xml)
+        skip = re.compile(r"/(archive|about|podcast|tag|author|category|page)/|/$")
+        return sum(1 for u in all_locs if not skip.search(u))
+
     except Exception:
         pass
     return 0
