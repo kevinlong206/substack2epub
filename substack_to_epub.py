@@ -183,7 +183,13 @@ def get_publication_info(base_url: str, session: requests.Session) -> dict:
 
 
 def fetch_all_posts(base_url: str, session: requests.Session, limit) -> list:
-    """Fetch all post stubs from the API, paginating as needed."""
+    """Fetch all post stubs from the API, paginating as needed.
+
+    When a limit is set and the session is unauthenticated, fetching continues
+    until at least `limit` *free* posts have been collected so that paid posts
+    skipped during build don't reduce the final chapter count below the limit.
+    """
+    authenticated = bool(session.cookies.get("substack.sid"))
     posts = []
     offset = 0
     page_size = 50
@@ -209,9 +215,20 @@ def fetch_all_posts(base_url: str, session: requests.Session, limit) -> list:
             break
         posts.extend(batch)
         print(f" {len(posts)}", end="", flush=True)
-        if limit and len(posts) >= limit:
-            posts = posts[:limit]
-            break
+        if limit:
+            if authenticated:
+                # Every post is downloadable; stop once we have enough total.
+                if len(posts) >= limit:
+                    posts = posts[:limit]
+                    break
+            else:
+                # Paid posts will be skipped; keep fetching until we have
+                # at least `limit` free posts to fill the requested count.
+                free_so_far = sum(
+                    1 for p in posts if p.get("audience", "everyone") == "everyone"
+                )
+                if free_so_far >= limit:
+                    break
         # Advance by the actual number returned, not page_size.
         # Substack's first page can return fewer than page_size even when more
         # posts exist further back, so we must not stop on a short batch.
@@ -426,6 +443,7 @@ def build_epub(
     pub_info: dict,
     session: requests.Session,
     output_path: str,
+    post_limit: int = None,
 ) -> None:
     book = epub.EpubBook()
 
@@ -479,6 +497,7 @@ hr { border: none; border-top: 1px solid #ccc; margin: 1.5em 0; }
     spine = ["nav"]
     free_count = 0
     skipped_paid = 0
+    downloaded = 0
     authenticated = bool(session.cookies.get("substack.sid"))
 
     print(f"\nProcessing {len(posts_data)} posts:")
@@ -561,7 +580,10 @@ hr { border: none; border-top: 1px solid #ccc; margin: 1.5em 0; }
             spine.append(chapter)
             if not is_paid:
                 free_count += 1
+            downloaded += 1
             print(" ✓")
+            if post_limit and downloaded >= post_limit:
+                break
 
         except Exception as e:
             print(f" ERROR: {e}")
@@ -715,7 +737,7 @@ def main():
         safe_name = re.sub(r"[^\w\- ]", "", pub_name).strip().replace(" ", "_")
         output_path = f"{safe_name}.epub"
 
-    build_epub(posts, pub_info, session, output_path)
+    build_epub(posts, pub_info, session, output_path, post_limit=args.limit)
 
 
 if __name__ == "__main__":

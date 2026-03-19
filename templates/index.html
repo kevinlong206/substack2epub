@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Substack Downloader</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --orange: #ff6719;
+      --orange-light: #fff3ed;
+      --bg: #f8f7f4;
+      --surface: #ffffff;
+      --border: #e5e2db;
+      --text: #1a1a1a;
+      --muted: #6b6b6b;
+      --green: #1a8a44;
+      --green-bg: #edfaf3;
+      --paid: #c0392b;
+      --paid-bg: #fdecea;
+      --radius: 12px;
+      --shadow: 0 1px 4px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo {
+      width: 36px; height: 36px;
+      background: var(--orange);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-weight: 800; font-size: 18px;
+    }
+    header h1 { font-size: 1.2rem; font-weight: 700; }
+    header p { color: var(--muted); font-size: 0.9rem; margin-left: auto; }
+
+    /* ── Main layout ── */
+    main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+
+    /* ── Custom URL card ── */
+    .custom-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      margin-bottom: 40px;
+      box-shadow: var(--shadow);
+    }
+    .custom-card h2 { font-size: 1.1rem; margin-bottom: 6px; }
+    .custom-card p { color: var(--muted); font-size: 0.875rem; margin-bottom: 20px; }
+
+    .url-row {
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .url-row input {
+      flex: 1; min-width: 240px;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color .15s;
+    }
+    .url-row input:focus { border-color: var(--orange); }
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--orange); color: #fff; }
+    .btn-primary:hover { opacity: .9; }
+    .btn-secondary { background: var(--border); color: var(--text); }
+    .btn-secondary:hover { opacity: .8; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+    .custom-result {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 8px;
+      background: var(--orange-light);
+      border: 1px solid #ffd4b5;
+      display: none;
+    }
+    .custom-result.visible { display: block; }
+
+    /* ── Section header ── */
+    .section-header {
+      display: flex; align-items: baseline; gap: 10px;
+      margin-bottom: 20px;
+    }
+    .section-header h2 { font-size: 1.1rem; }
+    .section-header span { color: var(--muted); font-size: 0.85rem; }
+
+    /* ── Grid ── */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 18px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .card:hover {
+      border-color: #d0cdc5;
+      box-shadow: 0 2px 8px rgba(0,0,0,.10), 0 8px 24px rgba(0,0,0,.08);
+    }
+    .card-name { font-size: 1rem; font-weight: 700; line-height: 1.3; }
+    .card-author { font-size: 0.82rem; color: var(--muted); }
+    .card-desc { font-size: 0.875rem; color: #444; line-height: 1.5; flex: 1; }
+
+    /* Counts row */
+    .counts {
+      display: flex; gap: 8px; flex-wrap: wrap;
+      margin-top: 4px;
+    }
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    .badge-total  { background: #f0eeea; color: #444; }
+    .badge-free   { background: var(--green-bg); color: var(--green); }
+    .badge-paid   { background: var(--paid-bg); color: var(--paid); }
+    .badge-loading {
+      background: #f0eeea; color: var(--muted);
+      font-weight: 400;
+      animation: pulse 1.4s ease-in-out infinite;
+    }
+    .badge-error { background: #fdecea; color: var(--paid); font-weight: 400; }
+
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+
+    /* Card actions */
+    .card-actions { display: flex; gap: 8px; margin-top: 6px; }
+    .card-actions .btn { flex: 1; font-size: 0.85rem; padding: 8px 12px; }
+
+    /* ── Drawer overlay ── */
+    .overlay {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.45);
+      z-index: 100;
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .overlay.open { display: flex; }
+
+    .drawer {
+      background: var(--surface);
+      border-radius: var(--radius) var(--radius) 0 0;
+      width: 100%;
+      max-width: 700px;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 -4px 32px rgba(0,0,0,.2);
+      animation: slideUp .25s ease;
+    }
+    @keyframes slideUp { from { transform: translateY(40px); opacity:0 } to { transform: translateY(0); opacity:1 } }
+
+    .drawer-header {
+      padding: 20px 24px 16px;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: flex-start; justify-content: space-between;
+      gap: 12px;
+    }
+    .drawer-header h3 { font-size: 1rem; font-weight: 700; }
+    .drawer-header p { font-size: 0.82rem; color: var(--muted); margin-top: 3px; }
+    .close-btn {
+      background: none; border: none; cursor: pointer;
+      font-size: 1.3rem; color: var(--muted); padding: 2px 6px;
+      border-radius: 6px;
+      line-height: 1;
+    }
+    .close-btn:hover { background: var(--border); }
+
+    .drawer-options {
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end;
+    }
+    .opt-group { display: flex; flex-direction: column; gap: 5px; min-width: 120px; }
+    .opt-group label { font-size: 0.78rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+    .opt-group select, .opt-group input {
+      padding: 7px 10px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 0.875rem;
+      outline: none;
+    }
+    .opt-group select:focus, .opt-group input:focus { border-color: var(--orange); }
+
+    .drawer-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px 24px;
+      font-family: "SF Mono", "Fira Mono", monospace;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      color: #333;
+      background: #fafaf8;
+    }
+    .log-line { white-space: pre-wrap; word-break: break-all; }
+    .log-line.ok { color: var(--green); }
+    .log-line.err { color: var(--paid); }
+
+    .drawer-footer {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+    .status-idle    { background: #f0eeea; color: var(--muted); }
+    .status-running { background: #fff8e6; color: #b07d00; animation: pulse 1.2s ease-in-out infinite; }
+    .status-done    { background: var(--green-bg); color: var(--green); }
+    .status-error   { background: var(--paid-bg); color: var(--paid); }
+
+    .download-link {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 18px;
+      background: var(--orange);
+      color: #fff;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.875rem;
+      text-decoration: none;
+    }
+    .download-link:hover { opacity: .9; }
+
+    @media (max-width: 600px) {
+      header p { display: none; }
+      main { padding: 24px 16px 60px; }
+      .custom-card { padding: 20px; }
+      .drawer-options { gap: 10px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">S</div>
+  <h1>Substack Downloader</h1>
+  <p>Download publications as EPUB for Kindle</p>
+</header>
+
+<main>
+
+  <!-- ── Custom URL ── -->
+  <div class="custom-card">
+    <h2>Download any Substack</h2>
+    <p>Enter a Substack URL to check available posts and download as EPUB.</p>
+    <div class="url-row">
+      <input id="custom-url" type="url" placeholder="https://example.substack.com" autocomplete="off" />
+      <button class="btn btn-primary" onclick="checkCustomUrl()">Check Posts</button>
+      <button class="btn btn-secondary" onclick="downloadCustomUrl()">Download EPUB</button>
+    </div>
+    <div class="custom-result" id="custom-result"></div>
+  </div>
+
+  <!-- ── Popular Substacks ── -->
+  <div class="section-header">
+    <h2>Popular Substacks</h2>
+    <span>{{ substacks | length }} publications — post counts loading&hellip;</span>
+  </div>
+
+  <div class="grid" id="grid">
+    {% for sub in substacks %}
+    <div class="card" data-url="{{ sub.url }}" data-name="{{ sub.name }}">
+      <div class="card-name">{{ sub.name }}</div>
+      <div class="card-author">by {{ sub.author }}</div>
+      <div class="card-desc">{{ sub.description }}</div>
+      <div class="counts">
+        <span class="badge badge-loading">loading&hellip;</span>
+      </div>
+      <div class="card-actions">
+        <button class="btn btn-primary" onclick="openDrawer('{{ sub.url }}', '{{ sub.name | replace("'", "\\'") }}')">
+          ↓ Download EPUB
+        </button>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+</main>
+
+<!-- ── Download Drawer ── -->
+<div class="overlay" id="overlay" onclick="handleOverlayClick(event)">
+  <div class="drawer" id="drawer">
+    <div class="drawer-header">
+      <div>
+        <h3 id="drawer-title">Download EPUB</h3>
+        <p id="drawer-url" style="word-break:break-all"></p>
+      </div>
+      <button class="close-btn" onclick="closeDrawer()">✕</button>
+    </div>
+    <div class="drawer-options">
+      <div class="opt-group">
+        <label>Sort order</label>
+        <select id="opt-sort">
+          <option value="new">Newest first</option>
+          <option value="old">Oldest first</option>
+          <option value="popular">Most popular</option>
+        </select>
+      </div>
+      <div class="opt-group" style="max-width:100px">
+        <label>Limit posts</label>
+        <input id="opt-limit" type="number" placeholder="all" min="1" />
+      </div>
+      <div class="opt-group" style="flex:1; min-width:200px">
+        <label>Session ID (for paywalled posts)</label>
+        <input id="opt-session" type="password" placeholder="substack.sid cookie (optional)" />
+      </div>
+      <button class="btn btn-primary" id="start-btn" onclick="startDownload()">Start Download</button>
+    </div>
+    <div class="drawer-log" id="drawer-log"></div>
+    <div class="drawer-footer">
+      <span class="status-pill status-idle" id="status-pill">Idle</span>
+      <span id="footer-right" style="margin-left:auto"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── State ──
+  let activeUrl = "";
+  let activeName = "";
+  let activeSource = null;
+  let countCache = {};
+
+  // ── Fetch counts for all visible cards ──
+  const cards = document.querySelectorAll(".card[data-url]");
+
+  function loadCounts() {
+    const queue = Array.from(cards);
+    let idx = 0;
+
+    function next() {
+      if (idx >= queue.length) return;
+      const card = queue[idx++];
+      const url = card.dataset.url;
+
+      if (countCache[url]) {
+        renderCounts(card, countCache[url]);
+        next();
+        return;
+      }
+
+      fetch(`/api/counts?url=${encodeURIComponent(url)}`)
+        .then(r => r.json())
+        .then(data => {
+          countCache[url] = data;
+          renderCounts(card, data);
+        })
+        .catch(() => renderCounts(card, { error: true }))
+        .finally(next);
+    }
+
+    // Run 3 parallel fetches
+    next(); next(); next();
+  }
+
+  function renderCounts(card, data) {
+    const el = card.querySelector(".counts");
+    if (data.error) {
+      el.innerHTML = `<span class="badge badge-error">unavailable</span>`;
+      return;
+    }
+    let html = `<span class="badge badge-total">📄 ${data.total} total</span>`;
+    if (data.free > 0)
+      html += `<span class="badge badge-free">✓ ${data.free} free</span>`;
+    if (data.paid > 0)
+      html += `<span class="badge badge-paid">🔒 ${data.paid} paid</span>`;
+    el.innerHTML = html;
+  }
+
+  // ── Custom URL ──
+  function checkCustomUrl() {
+    const url = document.getElementById("custom-url").value.trim();
+    if (!url) return;
+    const result = document.getElementById("custom-result");
+    result.classList.add("visible");
+    result.innerHTML = `<span style="color:var(--muted)">Fetching post counts for ${url}…</span>`;
+
+    fetch(`/api/counts?url=${encodeURIComponent(url)}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) {
+          result.innerHTML = `<strong>Error:</strong> ${data.error}`;
+          return;
+        }
+        result.innerHTML =
+          `<strong>${data.total}</strong> posts found &nbsp;·&nbsp; ` +
+          `<span style="color:var(--green)"><strong>${data.free}</strong> free</span> &nbsp;·&nbsp; ` +
+          `<span style="color:var(--paid)"><strong>${data.paid}</strong> paid</span>`;
+      })
+      .catch(e => { result.innerHTML = `Error: ${e.message}`; });
+  }
+
+  function downloadCustomUrl() {
+    const url = document.getElementById("custom-url").value.trim();
+    if (!url) { document.getElementById("custom-url").focus(); return; }
+    openDrawer(url, url);
+  }
+
+  document.getElementById("custom-url").addEventListener("keydown", e => {
+    if (e.key === "Enter") checkCustomUrl();
+  });
+
+  // ── Drawer ──
+  function openDrawer(url, name) {
+    activeUrl = url;
+    activeName = name;
+    document.getElementById("drawer-title").textContent = name;
+    document.getElementById("drawer-url").textContent = url;
+    document.getElementById("drawer-log").innerHTML = "";
+    setStatus("idle");
+    document.getElementById("footer-right").innerHTML = "";
+    document.getElementById("start-btn").disabled = false;
+    document.getElementById("overlay").classList.add("open");
+    document.body.style.overflow = "hidden";
+  }
+
+  function closeDrawer() {
+    if (activeSource) { activeSource.close(); activeSource = null; }
+    document.getElementById("overlay").classList.remove("open");
+    document.body.style.overflow = "";
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById("overlay")) closeDrawer();
+  }
+
+  function setStatus(state, text) {
+    const pill = document.getElementById("status-pill");
+    pill.className = "status-pill status-" + state;
+    pill.textContent = text || { idle: "Idle", running: "Downloading…", done: "Done", error: "Error" }[state];
+  }
+
+  function appendLog(text, cls) {
+    const log = document.getElementById("drawer-log");
+    const line = document.createElement("div");
+    line.className = "log-line" + (cls ? " " + cls : "");
+    line.textContent = text;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function startDownload() {
+    if (!activeUrl) return;
+    if (activeSource) { activeSource.close(); activeSource = null; }
+
+    const sort = document.getElementById("opt-sort").value;
+    const limit = document.getElementById("opt-limit").value.trim();
+    const sessionId = document.getElementById("opt-session").value.trim();
+
+    document.getElementById("drawer-log").innerHTML = "";
+    document.getElementById("footer-right").innerHTML = "";
+    document.getElementById("start-btn").disabled = true;
+    setStatus("running");
+
+    const params = new URLSearchParams({ url: activeUrl, sort, name: activeName });
+    if (limit) params.set("limit", limit);
+    if (sessionId) params.set("session_id", sessionId);
+
+    activeSource = new EventSource(`/api/download?${params}`);
+
+    activeSource.onmessage = e => {
+      const data = JSON.parse(e.data);
+      if (data.line !== undefined) {
+        const cls = data.line.includes("✓") ? "ok" : data.line.toLowerCase().includes("error") ? "err" : "";
+        appendLog(data.line, cls);
+      } else if (data.done) {
+        activeSource.close(); activeSource = null;
+        setStatus("done");
+        document.getElementById("start-btn").disabled = false;
+        const href = `/api/file/${data.token}`;
+        document.getElementById("footer-right").innerHTML =
+          `<a class="download-link" href="${href}">⬇ Save EPUB (${data.size_mb} MB)</a>`;
+        appendLog(`\nDone! ${data.size_mb} MB`, "ok");
+      } else if (data.error) {
+        activeSource.close(); activeSource = null;
+        setStatus("error", "Error");
+        appendLog(data.error, "err");
+        document.getElementById("start-btn").disabled = false;
+      }
+    };
+
+    activeSource.onerror = () => {
+      if (activeSource) { activeSource.close(); activeSource = null; }
+      setStatus("error", "Connection lost");
+      document.getElementById("start-btn").disabled = false;
+    };
+  }
+
+  // ── Boot ──
+  loadCounts();
+</script>
+</body>
+</html>

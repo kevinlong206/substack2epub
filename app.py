@@ -1,0 +1,250 @@
+#!/usr/bin/env python3
+"""
+Flask web interface for substack_to_epub.py
+
+Run:
+    python3 app.py
+Then open http://localhost:5000
+"""
+
+import json
+import os
+import re
+import secrets
+import subprocess
+import sys
+import tempfile
+import time
+import urllib.parse
+from pathlib import Path
+
+import requests
+from flask import Flask, Response, jsonify, render_template, request, send_file, stream_with_context
+
+# token -> (file_path, download_name)
+_file_store: dict = {}
+
+app = Flask(__name__)
+
+POPULAR_SUBSTACKS = [
+    {
+        "id": "heathercoxrichardson",
+        "name": "Letters from an American",
+        "url": "https://heathercoxrichardson.substack.com",
+        "author": "Heather Cox Richardson",
+        "description": "Historical perspective on current politics and events",
+    },
+    {
+        "id": "astralcodexten",
+        "name": "Astral Codex Ten",
+        "url": "https://www.astralcodexten.com",
+        "author": "Scott Alexander",
+        "description": "Medicine, psychiatry, philosophy, and rationality",
+    },
+    {
+        "id": "honest-broker",
+        "name": "The Honest Broker",
+        "url": "https://www.honest-broker.com",
+        "author": "Ted Gioia",
+        "description": "Music, culture, and the creative life",
+    },
+    {
+        "id": "noahpinion",
+        "name": "Noahpinion",
+        "url": "https://www.noahpinion.blog",
+        "author": "Noah Smith",
+        "description": "Economics, policy, and technology commentary",
+    },
+    {
+        "id": "mattstoller",
+        "name": "BIG by Matt Stoller",
+        "url": "https://mattstoller.substack.com",
+        "author": "Matt Stoller",
+        "description": "The political economy of monopoly power",
+    },
+    {
+        "id": "platformer",
+        "name": "Platformer",
+        "url": "https://www.platformer.news",
+        "author": "Casey Newton",
+        "description": "Tech platforms, social media, and Silicon Valley",
+    },
+    {
+        "id": "pragmatic-engineer",
+        "name": "The Pragmatic Engineer",
+        "url": "https://newsletter.pragmaticengineer.com",
+        "author": "Gergely Orosz",
+        "description": "Big tech internals and engineering culture",
+    },
+    {
+        "id": "freddiedeboer",
+        "name": "Freddie deBoer",
+        "url": "https://freddiedeboer.substack.com",
+        "author": "Freddie deBoer",
+        "description": "Education, culture, and left politics",
+    },
+    {
+        "id": "notboring",
+        "name": "Not Boring",
+        "url": "https://www.notboring.co",
+        "author": "Packy McCormick",
+        "description": "Business strategy and ambitious technology",
+    },
+    {
+        "id": "cremieux",
+        "name": "Cremieux Recueil",
+        "url": "https://www.cremieux.xyz",
+        "author": "Cremieux",
+        "description": "Quantitative analysis of social science questions",
+    },
+    {
+        "id": "persuasion",
+        "name": "Persuasion",
+        "url": "https://www.persuasion.community",
+        "author": "Yascha Mounk",
+        "description": "Ideas for an open society",
+    },
+    {
+        "id": "waitbutwhy",
+        "name": "Wait But Why",
+        "url": "https://waitbutwhy.com",
+        "author": "Tim Urban",
+        "description": "Long-form deep dives on complex topics",
+    },
+]
+
+BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/122.0.0.0 Safari/537.36"
+    )
+}
+
+
+def normalize_url(url: str) -> str:
+    url = url.strip().rstrip("/")
+    if not url.startswith("http"):
+        url = "https://" + url
+    return url
+
+
+def fetch_post_counts(base_url: str) -> dict:
+    """Paginate through all posts and return total / free / paid counts."""
+    total = 0
+    free = 0
+    offset = 0
+    page_size = 50
+
+    while True:
+        try:
+            resp = requests.get(
+                f"{base_url}/api/v1/archive",
+                params={"limit": page_size, "offset": offset, "sort": "new"},
+                headers=BROWSER_HEADERS,
+                timeout=15,
+            )
+            if resp.status_code == 429:
+                time.sleep(5)
+                continue
+            if resp.status_code != 200:
+                break
+            batch = resp.json()
+            if not batch:
+                break
+            total += len(batch)
+            free += sum(1 for p in batch if p.get("audience", "everyone") == "everyone")
+            if len(batch) < page_size:
+                break
+            offset += len(batch)
+            time.sleep(0.3)
+        except Exception:
+            break
+
+    return {"total": total, "free": free, "paid": total - free}
+
+
+@app.route("/")
+def index():
+    return render_template("index.html", substacks=POPULAR_SUBSTACKS)
+
+
+@app.route("/api/counts")
+def get_counts():
+    url = request.args.get("url", "").strip()
+    if not url:
+        return jsonify({"error": "url parameter required"}), 400
+    try:
+        base_url = normalize_url(urllib.parse.unquote(url))
+        counts = fetch_post_counts(base_url)
+        return jsonify(counts)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/download")
+def download_epub():
+    url = request.args.get("url", "").strip()
+    session_id = request.args.get("session_id", "").strip()
+    sort = request.args.get("sort", "new")
+    limit = request.args.get("limit", "").strip()
+
+    if not url:
+        return jsonify({"error": "url required"}), 400
+
+    base_url = normalize_url(url)
+    script_path = Path(__file__).parent / "substack_to_epub.py"
+    output_dir = tempfile.mkdtemp(prefix="substack_epub_")
+    output_path = os.path.join(output_dir, "output.epub")
+
+    cmd = [sys.executable, str(script_path), base_url, "--output", output_path, "--sort", sort]
+    if session_id:
+        cmd.extend(["--session-id", session_id])
+    if limit and limit.isdigit():
+        cmd.extend(["--limit", limit])
+
+    def generate():
+        try:
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
+            for line in process.stdout:
+                yield f"data: {json.dumps({'line': line.rstrip()})}\n\n"
+            process.wait()
+            if process.returncode == 0 and os.path.exists(output_path):
+                size_mb = os.path.getsize(output_path) / (1024 * 1024)
+                safe_name = re.sub(r"[^\w\- ]", "", request.args.get("name", "substack")).strip().replace(" ", "_") or "substack"
+                token = secrets.token_urlsafe(16)
+                _file_store[token] = (output_path, f"{safe_name}.epub")
+                yield f"data: {json.dumps({'done': True, 'token': token, 'size_mb': round(size_mb, 1)})}\n\n"
+            else:
+                yield f"data: {json.dumps({'error': 'Download failed', 'code': process.returncode})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+    return Response(
+        stream_with_context(generate()),
+        mimetype="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.route("/api/file/<token>")
+def serve_file(token):
+    entry = _file_store.get(token)
+    if not entry:
+        return "File not found", 404
+    path, name = entry
+    if not os.path.exists(path):
+        return "File no longer available", 410
+    return send_file(path, as_attachment=True, download_name=name)
+
+
+if __name__ == "__main__":
+    print("Starting Substack Downloader web interface...")
+    print("Open http://localhost:5000 in your browser")
+    app.run(debug=False, port=5000)

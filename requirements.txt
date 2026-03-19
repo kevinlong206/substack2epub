@@ -1,0 +1,6 @@
+flask>=3.0
+requests>=2.32
+beautifulsoup4>=4.12
+Pillow>=10.0
+ebooklib>=0.18
+lxml>=5.0
