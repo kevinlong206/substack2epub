@@ -160,6 +160,44 @@
     }
     .badge-error { background: #fdecea; color: var(--paid); font-weight: 400; }
 
+    /* ── Search bar ── */
+    .search-wrap {
+      position: relative;
+      margin-bottom: 24px;
+    }
+    .search-icon {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 1rem; pointer-events: none;
+    }
+    #search-input {
+      width: 100%;
+      padding: 11px 14px 11px 40px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      background: var(--surface);
+      outline: none;
+      box-shadow: var(--shadow);
+      transition: border-color .15s;
+    }
+    #search-input:focus { border-color: var(--orange); }
+
+    /* no-results banner */
+    .no-results {
+      display: none;
+      padding: 20px 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+    .no-results.visible { display: flex; }
+    .no-results p { flex: 1; color: var(--muted); font-size: 0.9rem; }
+    .no-results strong { color: var(--text); }
+
     @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
 
     /* Card actions */
@@ -295,10 +333,23 @@
     <div class="custom-result" id="custom-result"></div>
   </div>
 
+  <!-- ── Search ── -->
+  <div class="search-wrap">
+    <span class="search-icon">🔍</span>
+    <input id="search-input" type="search" placeholder="Search by name, author, or topic…" autocomplete="off" />
+  </div>
+
+  <!-- no-results fallback -->
+  <div class="no-results" id="no-results">
+    <p>No matches in the popular list for <strong id="no-results-query"></strong>.</p>
+    <button class="btn btn-secondary" id="try-url-btn">Try as Substack URL</button>
+    <button class="btn btn-primary" id="try-download-btn">Download EPUB</button>
+  </div>
+
   <!-- ── Popular Substacks ── -->
   <div class="section-header">
     <h2>Popular Substacks</h2>
-    <span>{{ substacks | length }} publications — post counts loading&hellip;</span>
+    <span id="section-count">{{ substacks | length }} publications — post counts loading&hellip;</span>
   </div>
 
   <div class="grid" id="grid">
@@ -371,6 +422,8 @@
   function loadCounts() {
     const queue = Array.from(cards);
     let idx = 0;
+    let done = 0;
+    const total = queue.length;
 
     function next() {
       if (idx >= queue.length) return;
@@ -390,7 +443,13 @@
           renderCounts(card, data);
         })
         .catch(() => renderCounts(card, { error: true }))
-        .finally(next);
+        .finally(() => {
+          done++;
+          if (done === total && !searchInput.value.trim()) {
+            sectionCount.textContent = `${total} publications`;
+          }
+          next();
+        });
     }
 
     // Run 3 parallel fetches
@@ -529,6 +588,69 @@
       document.getElementById("start-btn").disabled = false;
     };
   }
+
+  // ── Search / filter ──
+  const searchInput  = document.getElementById("search-input");
+  const noResults    = document.getElementById("no-results");
+  const noResultsQ   = document.getElementById("no-results-query");
+  const sectionCount = document.getElementById("section-count");
+  const allCards     = Array.from(document.querySelectorAll(".card[data-url]"));
+
+  function cardText(card) {
+    return [
+      card.dataset.name || "",
+      card.querySelector(".card-author")?.textContent || "",
+      card.querySelector(".card-desc")?.textContent  || "",
+    ].join(" ").toLowerCase();
+  }
+
+  function guessUrl(q) {
+    // Strip spaces and special chars to form a plausible subdomain
+    const slug = q.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
+    return slug ? `https://${slug}.substack.com` : "";
+  }
+
+  function applySearch() {
+    const q = searchInput.value.trim().toLowerCase();
+
+    if (!q) {
+      allCards.forEach(c => c.style.display = "");
+      noResults.classList.remove("visible");
+      sectionCount.textContent = `${allCards.length} publications`;
+      return;
+    }
+
+    const tokens = q.split(/\s+/);
+    let visible = 0;
+    allCards.forEach(card => {
+      const text = cardText(card);
+      const match = tokens.every(t => text.includes(t));
+      card.style.display = match ? "" : "none";
+      if (match) visible++;
+    });
+
+    sectionCount.textContent = `${visible} of ${allCards.length} publications`;
+
+    if (visible === 0) {
+      noResultsQ.textContent = `"${searchInput.value.trim()}"`;
+      noResults.classList.add("visible");
+      const url = guessUrl(q);
+      document.getElementById("try-url-btn").onclick = () => {
+        document.getElementById("custom-url").value = url;
+        searchInput.value = "";
+        applySearch();
+        checkCustomUrl();
+        document.getElementById("custom-url").scrollIntoView({ behavior: "smooth" });
+      };
+      document.getElementById("try-download-btn").onclick = () => {
+        openDrawer(url, searchInput.value.trim());
+      };
+    } else {
+      noResults.classList.remove("visible");
+    }
+  }
+
+  searchInput.addEventListener("input", applySearch);
 
   // ── Boot ──
   loadCounts();
