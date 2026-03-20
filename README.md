@@ -66,7 +66,7 @@ python3 substack_to_epub.py https://www.honest-broker.com
 
 ### Paywalled posts
 
-To include posts behind the paywall, you need to provide your Substack session cookie. See [Getting Your Session ID](#getting-your-session-id) below.
+To include posts behind the paywall, provide your Substack session cookie. See [Getting Your Session ID](#getting-your-session-id) below.
 
 **Interactive login (recommended — session is cached):**
 
@@ -118,7 +118,7 @@ python3 substack_to_epub.py https://example.substack.com --login --sort old
 
 ## Web UI
 
-The web UI lets you browse a curated list of popular Substacks, see how many posts are available (total, free, and paywalled), and download EPUBs with a real-time progress log — all from your browser.
+The web UI provides a simple browser interface for downloading EPUBs with real-time progress streaming.
 
 ### Running the web UI
 
@@ -130,31 +130,17 @@ Then open [http://localhost:5000](http://localhost:5000).
 
 ### Using the web UI
 
-**Popular Substacks list**
-
-The main page shows 12 popular Substacks. Post counts load automatically in the background and display three badges per card:
-
-- **Total** — all posts ever published
-- **Free** — posts downloadable without a subscription
-- **Paid** — posts behind the paywall
-
-**Custom URL**
-
-At the top of the page, enter any Substack URL to check its post counts or download it directly.
-
-**Downloading**
-
-Click **Download EPUB** on any card to open the download panel. Options:
+Enter any Substack URL and click **Download EPUB**. A download panel opens with the following options:
 
 | Option | Description |
 |---|---|
 | Sort order | Newest first, oldest first, or most popular |
-| Limit posts | Download only the first N posts (rounded up to fill with free posts if some are paywalled) |
+| Limit posts | Download only the first N posts |
 | Session ID | Paste your `substack.sid` cookie to include paywalled posts |
 
-Click **Start Download**. Progress streams in real time. When complete, a **Save EPUB** button appears — click it to download the file to your computer.
+Click **Start Download**. Progress streams in real time. When complete, a **Save EPUB** button appears — click it to save the file to your computer.
 
-Your session ID is sent directly to the Substack API and is never stored by the server.
+> **Note:** The web UI is intended for local use. Do not expose it to the internet — your session cookie is sensitive and should never be entered into a third-party hosted service.
 
 ---
 
