@@ -74,7 +74,13 @@ To include posts behind the paywall, provide your Substack session cookie. This 
 python3 substack_to_epub.py https://example.substack.com --login
 ```
 
-This sends a magic link to your email. Paste the URL from the email when prompted. The session is saved to `~/.config/substack_epub/session.json` so you only need to do this once.
+This triggers Substack's magic-link email flow:
+
+1. Enter your Substack email address when prompted
+2. Check your inbox for an email from Substack with a login link
+3. Copy the full URL from that link and paste it back into the terminal
+
+The session is saved to `~/.config/substack_epub/session.json` so you only need to authenticate once. Subsequent runs will reuse the cached session automatically.
 
 **Paste the cookie directly:**
 
@@ -136,7 +142,11 @@ Enter any Substack URL and click **Download EPUB**. A download panel opens with 
 |---|---|
 | Sort order | Newest first, oldest first, or most popular |
 | Limit posts | Download only the first N posts |
-| Session ID | Paste your `substack.sid` cookie to include paywalled posts |
+| Session ID | Your `substack.sid` cookie to include paywalled posts (subscriptions only) |
+
+**Paywalled posts in the web UI**
+
+To download paywalled posts, paste your `substack.sid` cookie into the Session ID field. You can do this manually (see [Getting Your Session ID](#getting-your-session-id)), or click **Auto-detect** to have the app read the cookie directly from your local browser (Chrome, Firefox, or Safari). Auto-detect only works when running the web UI locally on the same machine as your browser.
 
 Click **Start Download**. Progress streams in real time. When complete, a **Save EPUB** button appears — click it to save the file to your computer.
 
