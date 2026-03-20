@@ -66,7 +66,7 @@ python3 substack_to_epub.py https://www.honest-broker.com
 
 ### Paywalled posts
 
-To include posts behind the paywall, provide your Substack session cookie. See [Getting Your Session ID](#getting-your-session-id) below.
+To include posts behind the paywall, provide your Substack session cookie. This uses your credentials, so only posts from publications you are actively subscribed to will be downloaded. See [Getting Your Session ID](#getting-your-session-id) below.
 
 **Interactive login (recommended — session is cached):**
 
