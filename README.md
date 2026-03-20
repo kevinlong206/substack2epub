@@ -134,6 +134,12 @@ python3 app.py
 
 Then open [http://localhost:5000](http://localhost:5000).
 
+### Screenshots
+
+![Main screen](pics/main.png)
+
+![Download panel](pics/download.png)
+
 ### Using the web UI
 
 Enter any Substack URL and click **Download EPUB**. A download panel opens with the following options:
