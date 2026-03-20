@@ -50,19 +50,18 @@
     header p { color: var(--muted); font-size: 0.9rem; margin-left: auto; }
 
     /* ── Main layout ── */
-    main { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+    main { max-width: 700px; margin: 0 auto; padding: 60px 24px 80px; }
 
-    /* ── Custom URL card ── */
-    .custom-card {
+    /* ── URL card ── */
+    .url-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 28px 32px;
-      margin-bottom: 40px;
+      padding: 32px;
       box-shadow: var(--shadow);
     }
-    .custom-card h2 { font-size: 1.1rem; margin-bottom: 6px; }
-    .custom-card p { color: var(--muted); font-size: 0.875rem; margin-bottom: 20px; }
+    .url-card h2 { font-size: 1.1rem; margin-bottom: 6px; }
+    .url-card p { color: var(--muted); font-size: 0.875rem; margin-bottom: 20px; }
 
     .url-row {
       display: flex; gap: 10px; flex-wrap: wrap;
@@ -77,6 +76,7 @@
       transition: border-color .15s;
     }
     .url-row input:focus { border-color: var(--orange); }
+
     .btn {
       padding: 10px 20px;
       border-radius: 8px;
@@ -92,79 +92,6 @@
     .btn-secondary { background: var(--border); color: var(--text); }
     .btn-secondary:hover { opacity: .8; }
     .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
-
-    .custom-result {
-      margin-top: 16px;
-      padding: 14px 16px;
-      border-radius: 8px;
-      background: var(--orange-light);
-      border: 1px solid #ffd4b5;
-      display: none;
-    }
-    .custom-result.visible { display: block; }
-
-    /* ── Section header ── */
-    .section-header {
-      display: flex; align-items: baseline; gap: 10px;
-      margin-bottom: 20px;
-    }
-    .section-header h2 { font-size: 1.1rem; }
-    .section-header span { color: var(--muted); font-size: 0.85rem; }
-
-    /* ── Grid ── */
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 18px;
-    }
-
-    /* ── Card ── */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 20px;
-      box-shadow: var(--shadow);
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      transition: border-color .15s, box-shadow .15s;
-    }
-    .card:hover {
-      border-color: #d0cdc5;
-      box-shadow: 0 2px 8px rgba(0,0,0,.10), 0 8px 24px rgba(0,0,0,.08);
-    }
-    .card-name { font-size: 1rem; font-weight: 700; line-height: 1.3; }
-    .card-author { font-size: 0.82rem; color: var(--muted); }
-    .card-desc { font-size: 0.875rem; color: #444; line-height: 1.5; flex: 1; }
-
-    /* Counts row */
-    .counts {
-      display: flex; gap: 8px; flex-wrap: wrap;
-      margin-top: 4px;
-    }
-    .badge {
-      display: inline-flex; align-items: center; gap: 4px;
-      padding: 4px 10px;
-      border-radius: 20px;
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-    .badge-total  { background: #f0eeea; color: #444; }
-    .badge-free   { background: var(--green-bg); color: var(--green); }
-    .badge-paid   { background: var(--paid-bg); color: var(--paid); }
-    .badge-loading {
-      background: #f0eeea; color: var(--muted);
-      font-weight: 400;
-      animation: pulse 1.4s ease-in-out infinite;
-    }
-    .badge-error { background: #fdecea; color: var(--paid); font-weight: 400; }
-
-    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
-
-    /* Card actions */
-    .card-actions { display: flex; gap: 8px; margin-top: 6px; }
-    .card-actions .btn { flex: 1; font-size: 0.85rem; padding: 8px 12px; }
 
     /* ── Drawer overlay ── */
     .overlay {
@@ -253,6 +180,8 @@
     .status-done    { background: var(--green-bg); color: var(--green); }
     .status-error   { background: var(--paid-bg); color: var(--paid); }
 
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+
     .download-link {
       display: inline-flex; align-items: center; gap: 6px;
       padding: 8px 18px;
@@ -267,8 +196,8 @@
 
     @media (max-width: 600px) {
       header p { display: none; }
-      main { padding: 24px 16px 60px; }
-      .custom-card { padding: 20px; }
+      main { padding: 32px 16px 60px; }
+      .url-card { padding: 24px; }
       .drawer-options { gap: 10px; }
     }
   </style>
@@ -282,43 +211,14 @@
 </header>
 
 <main>
-
-  <!-- ── Custom URL ── -->
-  <div class="custom-card">
+  <div class="url-card">
     <h2>Download any Substack</h2>
-    <p>Enter a Substack URL to check available posts and download as EPUB.</p>
+    <p>Enter a Substack URL to download it as a Kindle-ready EPUB.</p>
     <div class="url-row">
-      <input id="custom-url" type="url" placeholder="https://example.substack.com" autocomplete="off" />
-      <button class="btn btn-primary" onclick="checkCustomUrl()">Check Posts</button>
-      <button class="btn btn-secondary" onclick="downloadCustomUrl()">Download EPUB</button>
+      <input id="url-input" type="url" placeholder="https://example.substack.com" autocomplete="off" />
+      <button class="btn btn-primary" onclick="downloadUrl()">Download EPUB</button>
     </div>
-    <div class="custom-result" id="custom-result"></div>
   </div>
-
-  <!-- ── Popular Substacks ── -->
-  <div class="section-header">
-    <h2>Popular Substacks</h2>
-    <span>{{ substacks | length }} publications — post counts loading&hellip;</span>
-  </div>
-
-  <div class="grid" id="grid">
-    {% for sub in substacks %}
-    <div class="card" data-url="{{ sub.url }}" data-name="{{ sub.name }}">
-      <div class="card-name">{{ sub.name }}</div>
-      <div class="card-author">by {{ sub.author }}</div>
-      <div class="card-desc">{{ sub.description }}</div>
-      <div class="counts">
-        <span class="badge badge-loading">loading&hellip;</span>
-      </div>
-      <div class="card-actions">
-        <button class="btn btn-primary" onclick="openDrawer('{{ sub.url }}', '{{ sub.name | replace("'", "\\'") }}')">
-          ↓ Download EPUB
-        </button>
-      </div>
-    </div>
-    {% endfor %}
-  </div>
-
 </main>
 
 <!-- ── Download Drawer ── -->
@@ -366,88 +266,16 @@
   let activeUrl = "";
   let activeName = "";
   let activeSource = null;
-  let countCache = {};
 
-  // ── Fetch counts for all visible cards ──
-  const cards = document.querySelectorAll(".card[data-url]");
-
-  function loadCounts() {
-    const queue = Array.from(cards);
-    let idx = 0;
-
-    function next() {
-      if (idx >= queue.length) return;
-      const card = queue[idx++];
-      const url = card.dataset.url;
-
-      if (countCache[url]) {
-        renderCounts(card, countCache[url]);
-        next();
-        return;
-      }
-
-      fetch(`/api/counts?url=${encodeURIComponent(url)}`)
-        .then(r => r.json())
-        .then(data => {
-          countCache[url] = data;
-          renderCounts(card, data);
-        })
-        .catch(() => renderCounts(card, { error: true }))
-        .finally(next);
-    }
-
-    // Run 3 parallel fetches
-    next(); next(); next();
-  }
-
-  function renderCounts(card, data) {
-    const el = card.querySelector(".counts");
-    if (data.error) {
-      el.innerHTML = `<span class="badge badge-error">unavailable</span>`;
-      return;
-    }
-    const plus = data.capped ? "+" : "";
-    // Total is always exact (from sitemap) — no "+" needed
-    let html = `<span class="badge badge-total">📄 ${data.total} total</span>`;
-    if (data.free > 0)
-      html += `<span class="badge badge-free">✓ ${data.free}${plus} free</span>`;
-    if (data.paid > 0)
-      html += `<span class="badge badge-paid">🔒 ${data.paid}${plus} paid</span>`;
-    el.innerHTML = html;
-  }
-
-  // ── Custom URL ──
-  function checkCustomUrl() {
-    const url = document.getElementById("custom-url").value.trim();
-    if (!url) return;
-    const result = document.getElementById("custom-result");
-    result.classList.add("visible");
-    result.innerHTML = `<span style="color:var(--muted)">Fetching post counts for ${url}…</span>`;
-
-    fetch(`/api/counts?url=${encodeURIComponent(url)}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.error) {
-          result.innerHTML = `<strong>Error:</strong> ${data.error}`;
-          return;
-        }
-        const plus = data.capped ? "+" : "";
-        result.innerHTML =
-          `<strong>${data.total}</strong> posts found &nbsp;·&nbsp; ` +
-          `<span style="color:var(--green)"><strong>${data.free}${plus}</strong> free</span> &nbsp;·&nbsp; ` +
-          `<span style="color:var(--paid)"><strong>${data.paid}${plus}</strong> paid</span>`;
-      })
-      .catch(e => { result.innerHTML = `Error: ${e.message}`; });
-  }
-
-  function downloadCustomUrl() {
-    const url = document.getElementById("custom-url").value.trim();
-    if (!url) { document.getElementById("custom-url").focus(); return; }
+  // ── URL input ──
+  function downloadUrl() {
+    const url = document.getElementById("url-input").value.trim();
+    if (!url) { document.getElementById("url-input").focus(); return; }
     openDrawer(url, url);
   }
 
-  document.getElementById("custom-url").addEventListener("keydown", e => {
-    if (e.key === "Enter") checkCustomUrl();
+  document.getElementById("url-input").addEventListener("keydown", e => {
+    if (e.key === "Enter") downloadUrl();
   });
 
   // ── Drawer ──
@@ -558,9 +386,6 @@
         setTimeout(() => { btn.textContent = "Auto-detect"; btn.disabled = false; }, 2000);
       });
   }
-
-  // ── Boot ──
-  loadCounts();
 </script>
 </body>
 </html>
