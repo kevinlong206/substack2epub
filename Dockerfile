@@ -13,7 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY substack_to_epub.py app.py ./
+COPY substack2epub.py app.py ./
 COPY templates/ templates/
 
 EXPOSE 5000

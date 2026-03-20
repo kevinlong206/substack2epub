@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Flask web interface for substack_to_epub.py
+Flask web interface for substack2epub.py
 
 Run:
     python3 app.py
@@ -73,7 +73,7 @@ def download_epub():
         return jsonify({"error": "url required"}), 400
 
     base_url = normalize_url(url)
-    script_path = Path(__file__).parent / "substack_to_epub.py"
+    script_path = Path(__file__).parent / "substack2epub.py"
     output_dir = tempfile.mkdtemp(prefix="substack_epub_")
     output_path = os.path.join(output_dir, "output.epub")
 
@@ -125,6 +125,6 @@ def serve_file(token):
 
 
 if __name__ == "__main__":
-    print("Starting Substack Downloader web interface...")
+    print("Starting substack2epub web interface...")
     print("Open http://localhost:5000 in your browser")
     app.run(debug=False, port=5000)

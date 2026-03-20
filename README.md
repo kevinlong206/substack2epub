@@ -55,13 +55,13 @@ pip install -r requirements.txt
 Downloads all free posts from a Substack and saves them as an EPUB in the current directory.
 
 ```bash
-python3 substack_to_epub.py https://example.substack.com
+python3 substack2epub.py https://example.substack.com
 ```
 
 Custom domains work too:
 
 ```bash
-python3 substack_to_epub.py https://www.honest-broker.com
+python3 substack2epub.py https://www.honest-broker.com
 ```
 
 ### Paywalled posts
@@ -71,7 +71,7 @@ To include posts behind the paywall, provide your Substack session cookie. This 
 **Interactive login (recommended — session is cached):**
 
 ```bash
-python3 substack_to_epub.py https://example.substack.com --login
+python3 substack2epub.py https://example.substack.com --login
 ```
 
 This triggers Substack's magic-link email flow:
@@ -85,13 +85,13 @@ The session is saved to `~/.config/substack_epub/session.json` so you only need 
 **Paste the cookie directly:**
 
 ```bash
-python3 substack_to_epub.py https://example.substack.com --session-id YOUR_SID
+python3 substack2epub.py https://example.substack.com --session-id YOUR_SID
 ```
 
 **Clear a saved session:**
 
 ```bash
-python3 substack_to_epub.py --logout
+python3 substack2epub.py --logout
 ```
 
 ### Options
@@ -111,13 +111,13 @@ python3 substack_to_epub.py --logout
 
 ```bash
 # Download the 20 most popular posts
-python3 substack_to_epub.py https://example.substack.com --sort popular --limit 20
+python3 substack2epub.py https://example.substack.com --sort popular --limit 20
 
 # Save with a custom filename
-python3 substack_to_epub.py https://example.substack.com --output my_book.epub
+python3 substack2epub.py https://example.substack.com --output my_book.epub
 
 # Authenticated download, oldest-first
-python3 substack_to_epub.py https://example.substack.com --login --sort old
+python3 substack2epub.py https://example.substack.com --login --sort old
 ```
 
 ---
@@ -165,13 +165,13 @@ Click **Start Download**. Progress streams in real time. When complete, a **Save
 Build the image:
 
 ```bash
-docker build -t substack-downloader .
+docker build -t substack2epub .
 ```
 
 Run it:
 
 ```bash
-docker run -p 5000:5000 substack-downloader
+docker run -p 5000:5000 substack2epub
 ```
 
 Then open [http://localhost:5000](http://localhost:5000).
@@ -179,7 +179,7 @@ Then open [http://localhost:5000](http://localhost:5000).
 Generated EPUBs are written to `/tmp` inside the container and are available for download through the browser during the session. To persist them to your host machine:
 
 ```bash
-docker run -p 5000:5000 -v /tmp/epubs:/tmp substack-downloader
+docker run -p 5000:5000 -v /tmp/epubs:/tmp substack2epub
 ```
 
 ---
