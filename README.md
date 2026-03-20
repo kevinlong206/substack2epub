@@ -9,7 +9,7 @@ Download any Substack publication as a Kindle-ready EPUB. Supports free and payw
 - Downloads all posts from any Substack (custom domains supported)
 - Converts images to grayscale JPEG sized for Kindle Paperwhite
 - Embeds images directly in the EPUB — no internet connection needed on device
-- Handles paywalled posts when you provide your session cookie
+- Handles paywalled posts for publications you subscribe to
 - Sort by newest, oldest, or most popular
 - Optional post limit
 - Web UI with real-time download progress and one-click EPUB save
@@ -146,7 +146,7 @@ Enter any Substack URL and click **Download EPUB**. A download panel opens with 
 
 **Paywalled posts in the web UI**
 
-To download paywalled posts, paste your `substack.sid` cookie into the Session ID field. You can do this manually (see [Getting Your Session ID](#getting-your-session-id)), or click **Auto-detect** to have the app read the cookie directly from your local browser (Chrome, Firefox, or Safari). Auto-detect only works when running the web UI locally on the same machine as your browser.
+To download paywalled posts from publications you subscribe to, paste your `substack.sid` cookie into the Session ID field. You can do this manually (see [Getting Your Session ID](#getting-your-session-id)), or click **Auto-detect** to have the app read the cookie directly from your local browser (Chrome, Firefox, or Safari). Auto-detect only works when running the web UI locally on the same machine as your browser — it will not work in Docker.
 
 Click **Start Download**. Progress streams in real time. When complete, a **Save EPUB** button appears — click it to save the file to your computer.
 
